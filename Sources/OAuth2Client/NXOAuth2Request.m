@@ -25,6 +25,7 @@
 @interface NXOAuth2Request () <NXOAuth2ConnectionDelegate>
 @property (nonatomic,  strong, readwrite) NXOAuth2Connection *connection;
 @property (nonatomic,  strong, readwrite) NXOAuth2Request *me;
+@property (nonatomic,  copy,   readwrite) NXOAuth2RequestReceivingDataHandler receivingDataHandler;
 #pragma mark Apply Parameters
 - (void)applyParameters:(NSDictionary *)someParameters onRequest:(NSMutableURLRequest *)aRequest;
 @end
@@ -48,6 +49,19 @@
     [request performRequestWithSendingProgressHandler:progressHandler responseHandler:responseHandler];
 }
 
++ (void)performMethod:(NSString *)aMethod
+           onResource:(NSURL *)aResource
+      usingParameters:(NSDictionary *)someParameters
+          withAccount:(NXOAuth2Account *)anAccount
+ receivingDataHandler:(NXOAuth2RequestReceivingDataHandler)aReceivingDataHandler
+      responseHandler:(NXOAuth2ConnectionResponseHandler)responseHandler;
+{
+    NXOAuth2Request *request = [[NXOAuth2Request alloc] initWithResource:aResource
+                                                                  method:aMethod
+                                                              parameters:someParameters];
+    request.account = anAccount;
+    [request performRequestWithReceivingDataHandler:aReceivingDataHandler responseHandler:responseHandler];
+}
 
 #pragma mark Lifecycle
 
@@ -71,6 +85,7 @@
 @synthesize account;
 @synthesize connection;
 @synthesize me;
+@synthesize receivingDataHandler;
 
 
 #pragma mark Signed NSURLRequest
@@ -116,6 +131,13 @@
     self.me = self;
 }
 
+- (void)performRequestWithReceivingDataHandler:(NXOAuth2RequestReceivingDataHandler)aReceivingDataHandler
+                               responseHandler:(NXOAuth2ConnectionResponseHandler)responseHandler
+{
+    self.receivingDataHandler = aReceivingDataHandler;
+    [self performRequestWithSendingProgressHandler:nil responseHandler:responseHandler];
+}
+
 
 #pragma mark Cancel
 
@@ -130,6 +152,11 @@
 }
 
 #pragma mark NXOAuth2ConnectionDelegate
+
+- (void)oauthConnection:(NXOAuth2Connection *)connection didReceiveData:(NSData *)data
+{
+    if (receivingDataHandler) receivingDataHandler(data);
+}
 
 - (void)oauthConnection:(NXOAuth2Connection *)connection didFinishWithData:(NSData *)data;
 {
